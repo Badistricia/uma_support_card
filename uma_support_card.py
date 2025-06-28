@@ -3,14 +3,18 @@ import json
 import asyncio
 import difflib
 import urllib.parse
-from typing import Dict, List, Any, Optional, Tuple
+import uuid
+import time
+import hashlib
+import aiohttp
+from typing import Dict, List, Any, Optional, Tuple, Union
 from datetime import datetime, timedelta
 
 from hoshino import aiorequests, priv, Service
 from hoshino.typing import CQEvent
 from hoshino.util import filt_message
 from . import sv
-from .config import ApiConfig, PathConfig, SearchConfig, RequestConfig, generate_auth_params, add_sign
+from .config import ApiConfig, PathConfig, SearchConfig, RequestConfig, generate_auth_params, add_sign, APPKEY, APPSEC
 
 # 创建数据目录
 os.makedirs(PathConfig.DATA_PATH, exist_ok=True)
@@ -26,6 +30,24 @@ EVENT_TYPE_NAMES = {
     'after_match_story': '比赛后剧情',
     'continuous_story': '连续剧情',
     'trip_story': '外出剧情'
+}
+
+# 请求头
+HEADERS = {
+    'authority': 'api.game.bilibili.com',
+    'accept': 'application/json, text/plain, */*',
+    'accept-encoding': 'gzip, deflate, br, zstd',
+    'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+    'cookie': 'buvid3=76F55CFB-6E77-3109-2BF7-5AD58CC1E68B05746infoc; b_nut=1729597905; _uuid=2C9C39D7-1027C-8BB2-A634-AC1093D95951E04124infoc; rpdid=|(u))RJkkYkY0J\'u~kmY|))ml; LIVE_BUVID=AUTO4817296837234007; hit-dyn-v2=1; buvid_fp_plain=undefined; CURRENT_QUALITY=116; DedeUserID=415471715; DedeUserID__ckMd5=11cbad4fa17ac735; PVID=3; fingerprint=ff9039e8f0b0687db76f43c84ac1411f; buvid_fp=ff9039e8f0b0687db76f43c84ac1411f; buvid4=F2574029-5200-4A41-C5DF-981358FE7A9207043-024102211-AWSt%2FBgXp6pP2OvAnnKOWA%3D%3D; enable_web_push=DISABLE; enable_feed_channel=ENABLE; header_theme_version=OPEN; theme-tip-show=SHOWED; theme-avatar-tip-show=SHOWED; theme-switch-show=SHOWED; SESSDATA=ea322950%2C1766591802%2C39fcb%2A61CjDe79waq79fBlZbW4rQiT7lLy7ZHW0URqzrrJffDpyUnKHBueYLNfbA3aSIDgb4aO8SVjVBNjcwQmJDVkhRQS0zcmh3cnp5cGlVcVVDM2tMaFh5Q2k1N05SQzZJVzZ3QmNhbm9ZaGdBY1RWNGl1dlJPMmctUVZuVDVhdjN0amhlM3FyQnI4ZnV3IIEC; bili_jct=a7045c2b0835698c19e7418802088323; sid=84oh8j20; bsource=search_bing; bili_ticket=eyJhbGciOiJIUzI1NiIsImtpZCI6InMwMyIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTEzNjc1ODMsImlhdCI6MTc1MTEwODMyMywicGx0IjotMX0.cajUqXljbNQFernds1js16NzqP32JPgzslVCqC4ni1I; bili_ticket_expires=1751367523',
+    'origin': 'https://game.bilibili.com',
+    'referer': 'https://game.bilibili.com/',
+    'sec-ch-ua': '"Microsoft Edge";v="137", "Chromium";v="137", "Not/A)Brand";v="24"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"Windows"',
+    'sec-fetch-dest': 'empty',
+    'sec-fetch-mode': 'cors',
+    'sec-fetch-site': 'same-site',
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36 Edg/137.0.0.0'
 }
 
 # 数据管理相关函数
@@ -66,63 +88,45 @@ def save_events_data(data: Dict[str, Dict[str, List]]) -> None:
         sv.logger.error(f"保存事件数据失败: {e}")
 
 # API请求相关函数
-async def fetch_support_cards() -> Optional[List[Dict[str, Any]]]:
-    """获取所有协助卡数据"""
+async def fetch_support_cards() -> Optional[Dict]:
+    """获取支援卡列表"""
     try:
-        # 生成鉴权参数
-        params = generate_auth_params()
+        url = 'https://api.game.bilibili.com/game/player/tools/uma/support_cards'
+        params = generate_sign_params()
         
-        # 添加签名
-        params = add_sign(params)
-        
-        sv.logger.info(f"请求协助卡列表参数: {params}")
-        
-        # 构造完整URL用于日志记录
-        query_string = urllib.parse.urlencode(params)
-        full_url = f"{RequestConfig.CARDS_API}?{query_string}"
-        sv.logger.info(f"完整请求URL: {full_url}")
-        
-        resp = await aiorequests.get(RequestConfig.CARDS_API, params=params)
-        data = await resp.json()
-        
-        if data['code'] == 0 and 'data' in data and 'support_cards' in data['data']:
-            return data['data']['support_cards']
-        else:
-            sv.logger.error(f"获取协助卡列表失败: {data}")
-            return None
+        async with aiohttp.ClientSession(headers=HEADERS) as session:
+            async with session.get(url, params=params) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if data['code'] == 0:
+                        return data['data']
+                    logger.error(f'获取支援卡列表失败: {data["message"]}')
+                    return None
+                logger.error(f'获取支援卡列表失败: HTTP {resp.status}')
+                return None
     except Exception as e:
-        sv.logger.error(f"获取协助卡列表异常: {e}")
+        logger.error(f'获取支援卡列表异常: {e}')
         return None
 
-async def fetch_card_detail(card_id: int) -> Optional[Dict[str, Any]]:
-    """获取指定协助卡的详细信息"""
+async def fetch_support_card_detail(card_id: int) -> Optional[Dict]:
+    """获取支援卡详情"""
     try:
-        # 生成鉴权参数
-        params = generate_auth_params()
+        url = 'https://api.game.bilibili.com/game/player/tools/uma/support_card_detail'
+        params = generate_sign_params()
+        params['support_card_ids'] = str(card_id)
         
-        # 添加卡片ID
-        params['support_card_ids'] = card_id
-        
-        # 添加签名
-        params = add_sign(params)
-        
-        sv.logger.info(f"请求卡片 {card_id} 详情参数: {params}")
-        
-        # 构造完整URL用于日志记录
-        query_string = urllib.parse.urlencode(params)
-        full_url = f"{RequestConfig.CARD_DETAIL_API}?{query_string}"
-        sv.logger.info(f"完整请求URL: {full_url}")
-        
-        resp = await aiorequests.get(RequestConfig.CARD_DETAIL_API, params=params)
-        data = await resp.json()
-        
-        if data['code'] == 0 and 'data' in data and len(data['data']) > 0:
-            return data['data'][0]
-        else:
-            sv.logger.error(f"获取协助卡详细信息失败: {data}")
-            return None
+        async with aiohttp.ClientSession(headers=HEADERS) as session:
+            async with session.get(url, params=params) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if data['code'] == 0 and data['data']:
+                        return data['data'][0]
+                    logger.error(f'获取支援卡详情失败: {data["message"]}')
+                    return None
+                logger.error(f'获取支援卡详情失败: HTTP {resp.status}')
+                return None
     except Exception as e:
-        sv.logger.error(f"获取协助卡详细信息异常: {e}")
+        logger.error(f'获取支援卡详情异常: {e}')
         return None
 
 # 数据更新与处理函数
@@ -132,7 +136,7 @@ async def process_card_events(card: Dict[str, Any]) -> Tuple[str, Dict[str, Any]
     card_name = card['name']
     
     # 获取卡片详细信息
-    detail = await fetch_card_detail(card_id)
+    detail = await fetch_support_card_detail(card_id)
     if not detail:
         return card_id, {}
     
@@ -347,4 +351,26 @@ async def test_uma_api(bot, ev: CQEvent):
         await bot.send(ev, f'API测试失败: {resp}')
 
 # 初始化时尝试加载数据
-load_data() 
+load_data()
+
+def generate_sign_params() -> Dict[str, str]:
+    """生成请求所需的签名参数"""
+    ts = str(int(time.time() * 1000))
+    nonce = str(uuid.uuid4())
+    params = {
+        'ts': ts,
+        'nonce': nonce,
+        'appkey': APPKEY
+    }
+    
+    # 按照参数名排序
+    sorted_params = sorted(params.items())
+    # 拼接参数
+    query_string = '&'.join([f"{k}={v}" for k, v in sorted_params])
+    # 加上appsec
+    sign_string = query_string + APPSEC
+    # 计算MD5
+    sign = hashlib.md5(sign_string.encode()).hexdigest()
+    params['sign'] = sign
+    
+    return params 

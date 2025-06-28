@@ -3,23 +3,34 @@ import time
 import uuid
 import hashlib
 
-# API 配置
+# API认证参数
+APPKEY = "d053991039404237a44023da011d3e08"
+APPSEC = "1a51393c06a667507a1c5851fb7cba22"
+
+# API配置
 class ApiConfig:
-    # bilibili API 密钥 (请替换为您的有效值)
-    APPKEY = "d053991039404237a44023da011d3e08"
-    APPSEC = "1a51393c06a667507a1c5851fb7cba22"
+    # 支援卡列表API
+    CARDS_API = "https://api.game.bilibili.com/game/player/tools/uma/support_cards"
+    # 支援卡详情API
+    CARD_DETAIL_API = "https://api.game.bilibili.com/game/player/tools/uma/support_card_detail"
 
 # 路径配置
 class PathConfig:
-    # 数据存储路径
-    DATA_PATH = os.path.join(os.path.dirname(__file__), 'data')
-    CARDS_DATA_PATH = os.path.join(DATA_PATH, 'cards_data.json')
-    EVENTS_DATA_PATH = os.path.join(DATA_PATH, 'events_data.json')
+    # 数据文件路径
+    DATA_PATH = "./data/uma_support_card"
+    # 支援卡数据文件
+    CARDS_FILE = "cards.json"
+    # 支援卡详情数据文件
+    DETAILS_FILE = "card_details.json"
+    # 上次更新时间文件
+    LAST_UPDATE_FILE = "last_update.txt"
 
 # 搜索配置
 class SearchConfig:
-    # 匹配阈值
-    SIMILARITY_THRESHOLD = 0.4
+    # 模糊搜索阈值
+    SIMILARITY_THRESHOLD = 0.6
+    # 最大返回结果数
+    MAX_RESULTS = 5
 
 # 请求配置
 class RequestConfig:
@@ -42,7 +53,7 @@ def generate_auth_params():
     params = {
         'ts': ts,
         'nonce': nonce,
-        'appkey': ApiConfig.APPKEY
+        'appkey': APPKEY
     }
     return params
 
@@ -65,7 +76,7 @@ def add_sign(params):
     sign_string = '&'.join([f"{k}={v}" for k, v in sorted_params])
     
     # 添加appsec
-    sign_string = sign_string + ApiConfig.APPSEC
+    sign_string = sign_string + APPSEC
     
     # MD5加密
     sign = hashlib.md5(sign_string.encode('utf-8')).hexdigest()
