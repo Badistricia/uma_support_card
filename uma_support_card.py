@@ -2,13 +2,15 @@ import os
 import json
 import asyncio
 import difflib
+import urllib.parse
 from typing import Dict, List, Any, Optional, Tuple
+from datetime import datetime, timedelta
 
-from hoshino import aiorequests, priv
+from hoshino import aiorequests, priv, Service
 from hoshino.typing import CQEvent
 from hoshino.util import filt_message
 from . import sv
-from .config import ApiConfig, PathConfig, SearchConfig, RequestConfig
+from .config import ApiConfig, PathConfig, SearchConfig, RequestConfig, generate_auth_params, add_sign
 
 # 创建数据目录
 os.makedirs(PathConfig.DATA_PATH, exist_ok=True)
@@ -67,7 +69,19 @@ def save_events_data(data: Dict[str, Dict[str, List]]) -> None:
 async def fetch_support_cards() -> Optional[List[Dict[str, Any]]]:
     """获取所有协助卡数据"""
     try:
-        params = {'appkey': ApiConfig.APPKEY}
+        # 生成鉴权参数
+        params = generate_auth_params()
+        
+        # 添加签名
+        params = add_sign(params)
+        
+        sv.logger.info(f"请求协助卡列表参数: {params}")
+        
+        # 构造完整URL用于日志记录
+        query_string = urllib.parse.urlencode(params)
+        full_url = f"{RequestConfig.CARDS_API}?{query_string}"
+        sv.logger.info(f"完整请求URL: {full_url}")
+        
         resp = await aiorequests.get(RequestConfig.CARDS_API, params=params)
         data = await resp.json()
         
@@ -83,10 +97,22 @@ async def fetch_support_cards() -> Optional[List[Dict[str, Any]]]:
 async def fetch_card_detail(card_id: int) -> Optional[Dict[str, Any]]:
     """获取指定协助卡的详细信息"""
     try:
-        params = {
-            'support_card_ids': card_id,
-            'appkey': ApiConfig.APPKEY
-        }
+        # 生成鉴权参数
+        params = generate_auth_params()
+        
+        # 添加卡片ID
+        params['support_card_ids'] = card_id
+        
+        # 添加签名
+        params = add_sign(params)
+        
+        sv.logger.info(f"请求卡片 {card_id} 详情参数: {params}")
+        
+        # 构造完整URL用于日志记录
+        query_string = urllib.parse.urlencode(params)
+        full_url = f"{RequestConfig.CARD_DETAIL_API}?{query_string}"
+        sv.logger.info(f"完整请求URL: {full_url}")
+        
         resp = await aiorequests.get(RequestConfig.CARD_DETAIL_API, params=params)
         data = await resp.json()
         
@@ -163,6 +189,28 @@ async def update_data() -> bool:
     
     return True
 
+# 测试API鉴权
+async def test_api_auth() -> dict:
+    """测试API鉴权，返回API响应"""
+    try:
+        # 生成鉴权参数
+        params = generate_auth_params()
+        
+        # 添加签名
+        params = add_sign(params)
+        
+        # 构造完整URL
+        query_string = urllib.parse.urlencode(params)
+        full_url = f"{RequestConfig.CARDS_API}?{query_string}"
+        
+        sv.logger.info(f"测试请求完整URL: {full_url}")
+        resp = await aiorequests.get(RequestConfig.CARDS_API, params=params)
+        data = await resp.json()
+        return data
+    except Exception as e:
+        sv.logger.error(f"测试API鉴权异常: {e}")
+        return {"error": str(e)}
+
 # 查询与格式化函数
 def find_events_by_name(event_name: str) -> Optional[List[Dict[str, Any]]]:
     """根据事件名模糊搜索事件"""
@@ -225,6 +273,17 @@ def format_event_info(event) -> str:
     
     return '\n'.join(msg)
 
+# 定时任务
+@sv.scheduled_job('cron', hour=4, minute=30)
+async def daily_update():
+    """每天凌晨4:30自动更新数据"""
+    sv.logger.info("开始执行每日数据更新...")
+    success = await update_data()
+    if success:
+        sv.logger.info("每日数据更新完成")
+    else:
+        sv.logger.error("每日数据更新失败")
+
 # 命令处理函数
 @sv.on_prefix(('uma事件', '马娘事件', '赛马娘事件'))
 async def query_uma_event(bot, ev: CQEvent):
@@ -272,6 +331,20 @@ async def update_uma_data(bot, ev: CQEvent):
         await bot.send(ev, '赛马娘协助卡数据更新完成啦~！')
     else:
         await bot.send(ev, '赛马娘协助卡数据更新失败了呜呜呜>_<')
+
+@sv.on_fullmatch(('测试uma接口', '测试赛马娘接口'))
+async def test_uma_api(bot, ev: CQEvent):
+    if not priv.check_priv(ev, priv.ADMIN):
+        await bot.send(ev, '只有管理员才能执行这个操作哦~')
+        return
+    
+    await bot.send(ev, '正在测试API接口，请稍等...')
+    resp = await test_api_auth()
+    
+    if 'code' in resp and resp['code'] == 0:
+        await bot.send(ev, f'API测试成功！请求ID: {resp.get("request_id", "未知")}')
+    else:
+        await bot.send(ev, f'API测试失败: {resp}')
 
 # 初始化时尝试加载数据
 load_data() 
