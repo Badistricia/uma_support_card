@@ -17,7 +17,7 @@ from . import sv
 from .config import ApiConfig, PathConfig, SearchConfig, RequestConfig, generate_auth_params, add_sign, APPKEY, APPSEC, HeaderConfig
 
 # 创建数据目录
-os.makedirs(PathConfig.DATA_PATH, exist_ok=True)
+os.makedirs(PathConfig.BASE_PATH, exist_ok=True)
 
 # 全局变量
 support_cards = []
