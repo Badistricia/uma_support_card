@@ -33,41 +33,36 @@ EVENT_TYPE_NAMES = {
 }
 
 # 数据管理相关函数
-def load_data() -> None:
-    """加载本地数据"""
-    global support_cards, cards_events
+def load_data() -> Tuple[Dict, Dict]:
+    """加载数据文件"""
+    cards_data = {}
+    details_data = {}
     
-    # 加载卡片列表
+    # 加载支援卡数据
     if os.path.exists(PathConfig.CARDS_DATA_PATH):
-        try:
-            with open(PathConfig.CARDS_DATA_PATH, 'r', encoding='utf-8') as f:
-                support_cards = json.load(f)
-        except Exception as e:
-            sv.logger.error(f"加载协助卡数据失败: {e}")
+        with open(PathConfig.CARDS_DATA_PATH, 'r', encoding='utf-8') as f:
+            cards_data = json.load(f)
     
-    # 加载事件数据
-    if os.path.exists(PathConfig.EVENTS_DATA_PATH):
-        try:
-            with open(PathConfig.EVENTS_DATA_PATH, 'r', encoding='utf-8') as f:
-                cards_events = json.load(f)
-        except Exception as e:
-            sv.logger.error(f"加载事件数据失败: {e}")
+    # 加载详情数据
+    if os.path.exists(PathConfig.DETAILS_DATA_PATH):
+        with open(PathConfig.DETAILS_DATA_PATH, 'r', encoding='utf-8') as f:
+            details_data = json.load(f)
+    
+    return cards_data, details_data
 
-def save_cards_data(data: List[Dict[str, Any]]) -> None:
-    """保存协助卡数据"""
-    try:
-        with open(PathConfig.CARDS_DATA_PATH, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        sv.logger.error(f"保存协助卡数据失败: {e}")
-
-def save_events_data(data: Dict[str, Dict[str, List]]) -> None:
-    """保存事件数据"""
-    try:
-        with open(PathConfig.EVENTS_DATA_PATH, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        sv.logger.error(f"保存事件数据失败: {e}")
+def save_data(cards_data: Dict, details_data: Dict) -> None:
+    """保存数据到文件"""
+    # 保存支援卡数据
+    with open(PathConfig.CARDS_DATA_PATH, 'w', encoding='utf-8') as f:
+        json.dump(cards_data, f, ensure_ascii=False, indent=2)
+    
+    # 保存详情数据
+    with open(PathConfig.DETAILS_DATA_PATH, 'w', encoding='utf-8') as f:
+        json.dump(details_data, f, ensure_ascii=False, indent=2)
+    
+    # 更新时间记录
+    with open(PathConfig.LAST_UPDATE_PATH, 'w', encoding='utf-8') as f:
+        f.write(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
 
 # API请求相关函数
 async def fetch_support_cards() -> Optional[Dict]:
@@ -93,14 +88,14 @@ async def fetch_support_card_detail(card_id: int) -> Optional[Dict]:
     """获取支援卡详情"""
     try:
         params = ApiConfig.generate_sign_params()
-        params['support_card_ids'] = str(card_id)
+        params['card_id'] = card_id
         
         async with aiohttp.ClientSession(headers=HeaderConfig.HEADERS) as session:
             async with session.get(ApiConfig.CARD_DETAIL_API, params=params) as resp:
                 if resp.status == 200:
                     data = await resp.json()
-                    if data['code'] == 0 and data['data']:
-                        return data['data'][0]
+                    if data['code'] == 0:
+                        return data['data']
                     logger.error(f'获取支援卡详情失败: {data["message"]}')
                     return None
                 logger.error(f'获取支援卡详情失败: HTTP {resp.status}')
@@ -151,7 +146,7 @@ async def update_data() -> bool:
         return False
     
     support_cards = card_list
-    save_cards_data(support_cards)
+    save_data(support_cards, {})
     sv.logger.info(f"已获取到 {len(support_cards)} 张协助卡基础数据")
     
     # 获取每张卡的详细信息及事件
@@ -168,7 +163,7 @@ async def update_data() -> bool:
     
     # 更新全局数据
     cards_events = all_events
-    save_events_data(all_events)
+    save_data(support_cards, all_events)
     sv.logger.info(f"协助卡事件数据处理完成，共 {len(all_events)} 张卡")
     
     return True
@@ -280,7 +275,7 @@ async def query_uma_event(bot, ev: CQEvent):
     # 如果数据为空，尝试加载本地数据
     global support_cards, cards_events
     if not support_cards or not cards_events:
-        load_data()
+        support_cards, cards_events = load_data()
         
     # 如果还是为空，说明需要初始化数据
     if not support_cards or not cards_events:
@@ -331,7 +326,7 @@ async def test_uma_api(bot, ev: CQEvent):
         await bot.send(ev, f'API测试失败: {resp}')
 
 # 初始化时尝试加载数据
-load_data()
+support_cards, cards_events = load_data()
 
 def generate_sign_params() -> Dict[str, str]:
     """生成请求所需的签名参数"""

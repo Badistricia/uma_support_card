@@ -5,6 +5,7 @@ import os
 import time
 import uuid
 import hashlib
+import urllib.parse
 
 # API认证参数
 APPKEY = "d053991039404237a44023da011d3e08"
@@ -44,8 +45,8 @@ class ApiConfig:
 
     @staticmethod
     def generate_sign_params() -> dict:
-        """生成请求所需的签名参数"""
-        ts = str(int(time.time() * 1000))
+        """生成签名参数"""
+        ts = str(int(time.time()))
         nonce = str(uuid.uuid4())
         params = {
             'ts': ts,
@@ -55,10 +56,11 @@ class ApiConfig:
         
         # 按照参数名排序
         sorted_params = sorted(params.items())
-        # 拼接参数
-        query_string = '&'.join([f"{k}={v}" for k, v in sorted_params])
-        # 加上appsec
+        query_string = urllib.parse.urlencode(sorted_params)
+        
+        # 添加appsec
         sign_string = query_string + APPSEC
+        
         # 计算MD5
         sign = hashlib.md5(sign_string.encode()).hexdigest()
         params['sign'] = sign
@@ -67,14 +69,15 @@ class ApiConfig:
 
 # 路径配置
 class PathConfig:
+    # 基础数据目录
+    BASE_PATH = os.path.join(os.path.dirname(__file__), 'data')
+    # 确保数据目录存在
+    os.makedirs(BASE_PATH, exist_ok=True)
+    
     # 数据文件路径
-    DATA_PATH = "./data/uma_support_card"
-    # 支援卡数据文件
-    CARDS_FILE = "cards.json"
-    # 支援卡详情数据文件
-    DETAILS_FILE = "card_details.json"
-    # 上次更新时间文件
-    LAST_UPDATE_FILE = "last_update.txt"
+    CARDS_DATA_PATH = os.path.join(BASE_PATH, 'cards.json')
+    DETAILS_DATA_PATH = os.path.join(BASE_PATH, 'card_details.json')
+    LAST_UPDATE_PATH = os.path.join(BASE_PATH, 'last_update.txt')
 
 # 搜索配置
 class SearchConfig:
