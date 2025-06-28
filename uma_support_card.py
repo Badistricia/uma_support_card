@@ -74,18 +74,27 @@ async def fetch_support_cards() -> Optional[Dict]:
         query_string = urllib.parse.urlencode(params)
         url = f"{ApiConfig.CARDS_API}?{query_string}"
         
+        logger.info(f'开始获取支援卡列表')
+        logger.info(f'请求URL: {url}')
+        logger.info(f'请求方法: GET')
+        logger.info(f'请求头: {json.dumps(HeaderConfig.HEADERS, ensure_ascii=False, indent=2)}')
+        
         async with aiohttp.ClientSession(headers=HeaderConfig.HEADERS) as session:
             async with session.get(url) as resp:
+                logger.info(f'响应状态码: {resp.status}')
                 if resp.status == 200:
                     data = await resp.json()
+                    logger.info(f'响应数据: {json.dumps(data, ensure_ascii=False, indent=2)}')
                     if data['code'] == 0:
+                        logger.info(f'成功获取支援卡列表，数据条数: {len(data["data"].get("support_cards", []))}')
                         return data['data']
-                    logger.error(f'获取支援卡列表失败: {data["message"]}')
+                    logger.error(f'获取支援卡列表失败: {data["message"]} (code: {data["code"]})')
                     return None
                 logger.error(f'获取支援卡列表失败: HTTP {resp.status}')
                 return None
     except Exception as e:
         logger.error(f'获取支援卡列表异常: {e}')
+        logger.exception(e)  # 打印完整的异常堆栈
         return None
 
 async def fetch_support_card_detail(card_id: int) -> Optional[Dict]:
@@ -98,18 +107,27 @@ async def fetch_support_card_detail(card_id: int) -> Optional[Dict]:
         query_string = urllib.parse.urlencode(params)
         url = f"{ApiConfig.CARD_DETAIL_API}?{query_string}"
         
+        logger.info(f'开始获取支援卡详情 (card_id: {card_id})')
+        logger.info(f'请求URL: {url}')
+        logger.info(f'请求方法: GET')
+        logger.info(f'请求头: {json.dumps(HeaderConfig.HEADERS, ensure_ascii=False, indent=2)}')
+        
         async with aiohttp.ClientSession(headers=HeaderConfig.HEADERS) as session:
             async with session.get(url) as resp:
+                logger.info(f'响应状态码: {resp.status}')
                 if resp.status == 200:
                     data = await resp.json()
+                    logger.info(f'响应数据: {json.dumps(data, ensure_ascii=False, indent=2)}')
                     if data['code'] == 0:
+                        logger.info(f'成功获取支援卡详情')
                         return data['data']
-                    logger.error(f'获取支援卡详情失败: {data["message"]}')
+                    logger.error(f'获取支援卡详情失败: {data["message"]} (code: {data["code"]})')
                     return None
                 logger.error(f'获取支援卡详情失败: HTTP {resp.status}')
                 return None
     except Exception as e:
         logger.error(f'获取支援卡详情异常: {e}')
+        logger.exception(e)  # 打印完整的异常堆栈
         return None
 
 # 数据更新与处理函数
