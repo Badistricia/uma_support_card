@@ -70,8 +70,12 @@ async def fetch_support_cards() -> Optional[Dict]:
     try:
         params = ApiConfig.generate_sign_params()
         
+        # 构建完整的URL
+        query_string = urllib.parse.urlencode(params)
+        url = f"{ApiConfig.CARDS_API}?{query_string}"
+        
         async with aiohttp.ClientSession(headers=HeaderConfig.HEADERS) as session:
-            async with session.get(ApiConfig.CARDS_API, params=params) as resp:
+            async with session.get(url) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     if data['code'] == 0:
@@ -88,10 +92,14 @@ async def fetch_support_card_detail(card_id: int) -> Optional[Dict]:
     """获取支援卡详情"""
     try:
         params = ApiConfig.generate_sign_params()
-        params['card_id'] = card_id
+        params['support_card_ids'] = str(card_id)
+        
+        # 构建完整的URL
+        query_string = urllib.parse.urlencode(params)
+        url = f"{ApiConfig.CARD_DETAIL_API}?{query_string}"
         
         async with aiohttp.ClientSession(headers=HeaderConfig.HEADERS) as session:
-            async with session.get(ApiConfig.CARD_DETAIL_API, params=params) as resp:
+            async with session.get(url) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     if data['code'] == 0:

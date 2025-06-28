@@ -19,7 +19,7 @@ class HeaderConfig:
         'accept': 'application/json, text/plain, */*',
         'accept-encoding': 'gzip, deflate, br, zstd',
         'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
-        'cookie': 'buvid3=76F55CFB-6E77-3109-2BF7-5AD58CC1E68B05746infoc; b_nut=1729597905; _uuid=2C9C39D7-1027C-8BB2-A634-AC1093D95951E04124infoc; rpdid=|(u))RJkkYkY0J\'u~kmY|))ml; LIVE_BUVID=AUTO4817296837234007; hit-dyn-v2=1; buvid_fp_plain=undefined; CURRENT_QUALITY=116; DedeUserID=415471715; DedeUserID__ckMd5=11cbad4fa17ac735; PVID=3; fingerprint=ff9039e8f0b0687db76f43c84ac1411f; buvid_fp=ff9039e8f0b0687db76f43c84ac1411f; buvid4=F2574029-5200-4A41-C5DF-981358FE7A9207043-024102211-AWSt%2FBgXp6pP2OvAnnKOWA%3D%3D; enable_web_push=DISABLE; enable_feed_channel=ENABLE; header_theme_version=OPEN; theme-tip-show=SHOWED; theme-avatar-tip-show=SHOWED; theme-switch-show=SHOWED; SESSDATA=ea322950%2C1766591802%2C39fcb%2A61CjDe79waq79fBlZbW4rQiT7lLy7ZHW0URqzrrJffDpyUnKHBueYLNfbA3aSIDgb4aO8SVjVBNjcwQmJDVkhRQS0zcmh3cnp5cGlVcVVDM2tMaFh5Q2k1N05SQzZJVzZ3QmNhbm9ZaGdBY1RWNGl1dlJPMmctUVZuVDVhdjN0amhlM3FyQnI4ZnV3IIEC; bili_jct=a7045c2b0835698c19e7418802088323; sid=84oh8j20; bsource=search_bing; bili_ticket=eyJhbGciOiJIUzI1NiIsImtpZCI6InMwMyIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTEzNjc1ODMsImlhdCI6MTc1MTEwODMyMywicGx0IjotMX0.cajUqXljbNQFernds1js16NzqP32JPgzslVCqC4ni1I; bili_ticket_expires=1751367523',
+        'cookie': 'buvid3=76F55CFB-6E77-3109-2BF7-5AD58CC1E68B05746infoc; b_nut=1729597905; _uuid=2C9C39D7-1027C-8BB2-A634-AC1093D95951E04124infoc; rpdid=|(u))RJkkYkY0J\'u~kmY|))ml; LIVE_BUVID=AUTO4817296837234007; hit-dyn-v2=1; buvid_fp_plain=undefined; CURRENT_QUALITY=116; DedeUserID=415471715; DedeUserID__ckMd5=11cbad4fa17ac735; PVID=3; fingerprint=ff9039e8f0b0687db76f43c84ac1411f; buvid_fp=ff9039e8f0b0687db76f43c84ac1411f; buvid4=F2574029-5200-4A41-C5DF-981358FE7A9207043-024102211-AWSt%2FBgXp6pP2OvAnnKOWA%3D%3D; enable_web_push=DISABLE; enable_feed_channel=ENABLE; header_theme_version=OPEN; theme-tip-show=SHOWED; theme-avatar-tip-show=SHOWED; theme-switch-show=SHOWED; SESSDATA=ea322950%2C1766591802%2C39fcb%2A61CjDe79waq79fBlZbW4rQiT7lLy7ZHW0URqzrrJffDpyUnKHBueYLNfbA3aSIDgb4aO8SVjVBNjcwQmJDVkhRQS0zcmh3cnp5cGlVcVVDM2tMaFh5Q2k1N05SQzZJVzZ3QmNhbm9ZaGdBY1RWNGl1dlJPMmctUVZuVDVhdjN0amhlM3FyQnI4ZnV3IIEC; bili_jct=a7045c2b0835698c19e7418802088323; sid=84oh8j20; bsource=search_bing; bili_ticket=eyJhbGciOiJIUzI1NiIsImtpZCI6InMwMyIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTEzNjc1ODMsImlhdCI6MTc1MTEwODMyMywicGx0IjotMX0.cajUqXljbNQFernds1js16NzqP32JPgzslVCqC4ni1I; bili_ticket_expires=1751367523; home_feed_column=5; browser_resolution=1994-998; CURRENT_FNVAL=2000; bp_t_offset_415471715=1083541491965493248; b_lsid=469B48FB_197B7984759',
         'origin': 'https://game.bilibili.com',
         'referer': 'https://game.bilibili.com/',
         'sec-ch-ua': '"Microsoft Edge";v="137", "Chromium";v="137", "Not/A)Brand";v="24"',
@@ -46,7 +46,7 @@ class ApiConfig:
     @staticmethod
     def generate_sign_params() -> dict:
         """生成签名参数"""
-        ts = str(int(time.time()))
+        ts = str(int(time.time() * 1000))  # 使用毫秒级时间戳
         nonce = str(uuid.uuid4())
         params = {
             'ts': ts,
